@@ -2,7 +2,6 @@ const express = require("express");
 const app = express();
 app.use(express.json());
 
-// Keys loaded from Railway environment variables
 const ALPACA_API_KEY    = process.env.ALPACA_API_KEY;
 const ALPACA_SECRET_KEY = process.env.ALPACA_SECRET_KEY;
 const ALPACA_BASE_URL   = "https://paper-api.alpaca.markets";
@@ -19,15 +18,15 @@ function formatSymbol(symbol) {
   return symbol;
 }
 
-async function placeTrade(symbol, side, qty) {
+async function placeTrade(symbol, side, notional) {
   const formattedSymbol = formatSymbol(symbol);
   const url = `${ALPACA_BASE_URL}/v2/orders`;
   const body = {
     symbol:        formattedSymbol,
-    qty:           String(qty),
     side:          side,
     type:          "market",
-    time_in_force: "gtc"
+    time_in_force: "gtc",
+    notional:      String(notional)
   };
 
   console.log("Placing trade:", JSON.stringify(body));
@@ -68,16 +67,16 @@ async function closeTrade(symbol) {
 }
 
 app.post("/webhook", async (req, res) => {
-  const { signal, symbol, qty } = req.body;
+  const { signal, symbol, notional } = req.body;
   console.log("Signal received:", JSON.stringify(req.body));
 
   try {
     if (signal === "BUY") {
-      const result = await placeTrade(symbol, "buy", qty || 1);
+      const result = await placeTrade(symbol, "buy", notional || 1000);
       res.json({ status: "BUY order placed", symbol, result });
 
     } else if (signal === "SELL") {
-      const result = await placeTrade(symbol, "sell", qty || 1);
+      const result = await placeTrade(symbol, "sell", notional || 1000);
       res.json({ status: "SELL order placed", symbol, result });
 
     } else if (signal === "EXIT") {
