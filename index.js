@@ -5,6 +5,8 @@ app.use(express.json());
 // Your Alpaca API credentials
 const ALPACA_API_KEY    = process.env.ALPACA_API_KEY;
 const ALPACA_SECRET_KEY = process.env.ALPACA_SECRET_KEY;
+console.log("API Key loaded:", ALPACA_API_KEY ? "YES" : "NO");
+console.log("Secret Key loaded:", ALPACA_SECRET_KEY ? "YES" : "NO");
 const ALPACA_BASE_URL   = "https://paper-api.alpaca.markets";
 
 // Function to place trade on Alpaca
