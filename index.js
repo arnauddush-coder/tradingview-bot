@@ -2,6 +2,7 @@ const express = require("express");
 const app = express();
 app.use(express.json());
 
+// Keys loaded from Railway environment variables
 const ALPACA_API_KEY    = process.env.ALPACA_API_KEY;
 const ALPACA_SECRET_KEY = process.env.ALPACA_SECRET_KEY;
 const ALPACA_BASE_URL   = "https://paper-api.alpaca.markets";
