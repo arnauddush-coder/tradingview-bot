@@ -61,9 +61,27 @@ async function closeTrade(symbol) {
     }
   });
 
-  const data = await response.json();
-  console.log("Close response:", JSON.stringify(data));
-  return data;
+  // Handle no position found
+  if (response.status === 404) {
+    console.log("No position found for:", formattedSymbol);
+    return { message: "No position to close" };
+  }
+
+  // Handle empty response
+  const text = await response.text();
+  if (!text) {
+    console.log("Position closed successfully");
+    return { message: "Position closed" };
+  }
+
+  try {
+    const data = JSON.parse(text);
+    console.log("Close response:", JSON.stringify(data));
+    return data;
+  } catch (e) {
+    console.log("Position closed:", text);
+    return { message: "Position closed" };
+  }
 }
 
 app.post("/webhook", async (req, res) => {
@@ -72,16 +90,20 @@ app.post("/webhook", async (req, res) => {
 
   try {
     if (signal === "BUY") {
+      // Open long position
       const result = await placeTrade(symbol, "buy", notional || 1000);
       res.json({ status: "BUY order placed", symbol, result });
 
     } else if (signal === "SELL") {
-      const result = await placeTrade(symbol, "sell", notional || 1000);
-      res.json({ status: "SELL order placed", symbol, result });
+      // For crypto — close long position instead of shorting
+      console.log("SELL signal — closing long position for:", symbol);
+      const result = await closeTrade(symbol);
+      res.json({ status: "Position closed on SELL", symbol, result });
 
     } else if (signal === "EXIT") {
+      // Close position
       const result = await closeTrade(symbol);
-      res.json({ status: "Position closed", symbol, result });
+      res.json({ status: "Position closed on EXIT", symbol, result });
 
     } else {
       res.json({ status: "Unknown signal", signal });
