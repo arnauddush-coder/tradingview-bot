@@ -46,42 +46,71 @@ async function placeTrade(symbol, side, notional) {
   return data;
 }
 
-async function closeTrade(symbol) {
+async function getPosition(symbol) {
   const formattedSymbol = formatSymbol(symbol);
   const encodedSymbol   = encodeURIComponent(formattedSymbol);
   const url = `${ALPACA_BASE_URL}/v2/positions/${encodedSymbol}`;
 
-  console.log("Closing position:", formattedSymbol);
-
   const response = await fetch(url, {
-    method:  "DELETE",
+    method:  "GET",
     headers: {
       "APCA-API-KEY-ID":     ALPACA_API_KEY,
       "APCA-API-SECRET-KEY": ALPACA_SECRET_KEY
     }
   });
 
-  // Handle no position found
   if (response.status === 404) {
+    return null;
+  }
+
+  const data = await response.json();
+  return data;
+}
+
+async function closeTrade(symbol) {
+  const formattedSymbol = formatSymbol(symbol);
+  console.log("Getting position for:", formattedSymbol);
+
+  // First get the current position
+  const position = await getPosition(symbol);
+
+  // No position to close
+  if (!position) {
     console.log("No position found for:", formattedSymbol);
     return { message: "No position to close" };
   }
 
-  // Handle empty response
-  const text = await response.text();
-  if (!text) {
-    console.log("Position closed successfully");
-    return { message: "Position closed" };
-  }
+  console.log("Position found:", JSON.stringify(position));
 
-  try {
-    const data = JSON.parse(text);
-    console.log("Close response:", JSON.stringify(data));
-    return data;
-  } catch (e) {
-    console.log("Position closed:", text);
-    return { message: "Position closed" };
-  }
+  // Get exact quantity owned
+  const qty = position.qty;
+  const side = position.side === "long" ? "sell" : "buy";
+
+  console.log(`Closing ${side} position of ${qty} ${formattedSymbol}`);
+
+  // Place order with exact quantity
+  const url = `${ALPACA_BASE_URL}/v2/orders`;
+  const body = {
+    symbol:        formattedSymbol,
+    qty:           String(qty),
+    side:          side,
+    type:          "market",
+    time_in_force: "gtc"
+  };
+
+  const response = await fetch(url, {
+    method:  "POST",
+    headers: {
+      "APCA-API-KEY-ID":     ALPACA_API_KEY,
+      "APCA-API-SECRET-KEY": ALPACA_SECRET_KEY,
+      "Content-Type":        "application/json"
+    },
+    body: JSON.stringify(body)
+  });
+
+  const data = await response.json();
+  console.log("Close response:", JSON.stringify(data));
+  return data;
 }
 
 app.post("/webhook", async (req, res) => {
@@ -90,18 +119,16 @@ app.post("/webhook", async (req, res) => {
 
   try {
     if (signal === "BUY") {
-      // Open long position
       const result = await placeTrade(symbol, "buy", notional || 1000);
       res.json({ status: "BUY order placed", symbol, result });
 
     } else if (signal === "SELL") {
-      // For crypto — close long position instead of shorting
-      console.log("SELL signal — closing long position for:", symbol);
+      console.log("SELL signal — closing position for:", symbol);
       const result = await closeTrade(symbol);
       res.json({ status: "Position closed on SELL", symbol, result });
 
     } else if (signal === "EXIT") {
-      // Close position
+      console.log("EXIT signal — closing position for:", symbol);
       const result = await closeTrade(symbol);
       res.json({ status: "Position closed on EXIT", symbol, result });
 
