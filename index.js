@@ -47,24 +47,34 @@ async function placeTrade(symbol, side, notional) {
 }
 
 async function getPosition(symbol) {
-  const formattedSymbol = formatSymbol(symbol);
-  const encodedSymbol   = encodeURIComponent(formattedSymbol);
-  const url = `${ALPACA_BASE_URL}/v2/positions/${encodedSymbol}`;
+  // Try both formats - with and without slash
+  const symbols = [
+    symbol,                              // BTCUSD
+    formatSymbol(symbol),               // BTC/USD
+    encodeURIComponent(formatSymbol(symbol)) // BTC%2FUSD
+  ];
 
-  const response = await fetch(url, {
-    method:  "GET",
-    headers: {
-      "APCA-API-KEY-ID":     ALPACA_API_KEY,
-      "APCA-API-SECRET-KEY": ALPACA_SECRET_KEY
+  for (const sym of symbols) {
+    const url = `${ALPACA_BASE_URL}/v2/positions/${sym}`;
+    console.log("Trying position URL:", url);
+
+    const response = await fetch(url, {
+      method:  "GET",
+      headers: {
+        "APCA-API-KEY-ID":     ALPACA_API_KEY,
+        "APCA-API-SECRET-KEY": ALPACA_SECRET_KEY
+      }
+    });
+
+    if (response.status === 200) {
+      const data = await response.json();
+      console.log("Position found with symbol:", sym);
+      return data;
     }
-  });
-
-  if (response.status === 404) {
-    return null;
   }
 
-  const data = await response.json();
-  return data;
+  console.log("No position found for:", symbol);
+  return null;
 }
 
 async function closeTrade(symbol) {
