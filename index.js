@@ -145,6 +145,20 @@ app.post("/webhook", async (req, res) => {
 app.get("/", (req, res) => {
   res.json({ status: "Trading bot is running!" });
 });
+// Check all positions
+app.get("/positions", async (req, res) => {
+  const url = `${ALPACA_BASE_URL}/v2/positions`;
+  const response = await fetch(url, {
+    method: "GET",
+    headers: {
+      "APCA-API-KEY-ID":     ALPACA_API_KEY,
+      "APCA-API-SECRET-KEY": ALPACA_SECRET_KEY
+    }
+  });
+  const data = await response.json();
+  console.log("Positions:", JSON.stringify(data));
+  res.json(data);
+});
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
